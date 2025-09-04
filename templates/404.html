@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+    
+    <h2 style="color: #e53e3e; margin-bottom: 20px;">Page Not Found</h2>
+    
+    <div style="background: #fed7d7; border: 1px solid #feb2b2; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="color: #9b2c2c;">
+            The page you're looking for doesn't exist or has been moved.
+        </p>
+    </div>
+    
+    <div style="background: #bee3f8; border: 1px solid #90cdf4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h4 style="color: #2a4365; margin-bottom: 10px;">What you can do:</h4>
+        <ul style="color: #2c5282; text-align: left; margin-left: 20px;">
+            <li>Go back to the home page</li>
+            <li>Check if you entered the correct URL</li>
+            <li>Create a new file drop</li>
+            <li>Try accessing a drop with a 4-digit code</li>
+        </ul>
+    </div>
+    
+    <div style="margin-top: 30px;">
+        <a href="{{ url_for('home') }}" class="btn">
+            🏠 Go Home
+        </a>
+    </div>
+</div>
+{% endblock %}

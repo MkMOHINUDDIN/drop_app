@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Drop {{ code }} - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>📦 Drop {{ code }}</h2>
+        <div style="background: #c6f6d5; color: #22543d; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem;">
+            Expires: {{ drop_info.expires_at.strftime('%m/%d %H:%M') }}
+        </div>
+    </div>
+    
+    <!-- Text Content -->
+    {% if drop_info.text_content %}
+    <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <h3 style="color: #4a5568; margin-bottom: 15px;">📝 Shared Text</h3>
+        <div style="background: white; border: 1px solid #cbd5e0; border-radius: 6px; padding: 15px; white-space: pre-wrap; font-family: 'Courier New', monospace; line-height: 1.5;">{{ drop_info.text_content }}</div>
+        <button onclick="copyText()" class="btn btn-secondary" style="margin-top: 10px;">
+            📋 Copy Text
+        </button>
+    </div>
+    {% endif %}
+    
+    <!-- Files Section -->
+    {% if files %}
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="color: #4a5568;">📁 Files ({{ files|length }})</h3>
+            <a href="{{ url_for('download_all', code=code) }}" class="btn btn-success">
+                📦 Download All (ZIP)
+            </a>
+        </div>
+        
+        <ul class="file-list">
+            {% for file in files %}
+            <li class="file-item">
+                <div class="file-info">
+                    <div class="file-name">{{ file.original_filename }}</div>
+                    <div class="file-size">{{ "%.1f"|format(file.file_size / 1024 / 1024) }} MB</div>
+                </div>
+                <a href="{{ url_for('download_file', code=code, filename=file.filename) }}" class="btn">
+                    ⬇️ Download
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <!-- Empty State -->
+    {% if not drop_info.text_content and not files %}
+    <div style="text-align: center; padding: 40px; color: #718096;">
+        <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+        <h3>This drop is empty</h3>
+        <p>The drop exists but contains no content.</p>
+    </div>
+    {% endif %}
+    
+    <!-- Actions -->
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+        <a href="{{ url_for('home') }}" class="btn">
+            🏠 Create New Drop
+        </a>
+        <button onclick="shareDrop()" class="btn btn-secondary" style="margin-left: 10px;">
+            📤 Share This Drop
+        </button>
+    </div>
+</div>
+
+<!-- Drop Info -->
+<div class="card" style="margin-top: 20px;">
+    <h3 style="color: #4a5568; margin-bottom: 15px;">ℹ️ Drop Information</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div>
+            <strong>Access Code:</strong><br>
+            <span style="font-family: monospace; font-size: 1.2rem; color: #667eea;">{{ code }}</span>
+        </div>
+        <div>
+            <strong>Created:</strong><br>
+            {{ drop_info.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+        <div>
+            <strong>Expires:</strong><br>
+            {{ drop_info.expires_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+        <div>
+            <strong>Files:</strong><br>
+            {{ files|length }} file{{ 's' if files|length != 1 else '' }}
+        </div>
+    </div>
+</div>
+
+<script>
+function copyText() {
+    const textContent = `{{ drop_info.text_content|e }}`;
+    navigator.clipboard.writeText(textContent).then(function() {
+        alert('Text copied to clipboard!');
+    }).catch(function() {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = textContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Text copied to clipboard!');
+    });
+}
+
+function shareDrop() {
+    const code = '{{ code }}';
+    const url = window.location.href;
+    const shareData = {
+        title: 'File Drop - Code ' + code,
+        text: 'Check out this file drop with code: ' + code,
+        url: url
+    };
+    
+    if (navigator.share) {
+        navigator.share(shareData);
+    } else {
+        navigator.clipboard.writeText(url).then(function() {
+            alert('Drop URL copied to clipboard!');
+        }).catch(function() {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Drop URL copied to clipboard!');
+        });
+    }
+}
+</script>
+{% endblock %}

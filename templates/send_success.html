@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Drop Created - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🎉</div>
+    
+    <h2 style="color: #38a169; margin-bottom: 20px;">Drop Created Successfully!</h2>
+    
+    <div class="code-display">
+        <div class="code">{{ code }}</div>
+        <div class="expiry-info">
+            Expires: {{ expires_at.strftime('%Y-%m-%d at %H:%M') }}
+        </div>
+    </div>
+    
+    <div style="background: #c6f6d5; border: 1px solid #9ae6b4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h4 style="color: #22543d; margin-bottom: 10px;">Share this code with others:</h4>
+        <p style="color: #2f855a; margin-bottom: 15px;">
+            They can use this 4-digit code to access your files and text at any time.
+        </p>
+        <button onclick="copyCode()" class="btn btn-success" style="margin-right: 10px;">
+            📋 Copy Code
+        </button>
+        <button onclick="shareCode()" class="btn">
+            📤 Share
+        </button>
+    </div>
+    
+    <div style="background: #bee3f8; border: 1px solid #90cdf4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h4 style="color: #2a4365; margin-bottom: 10px;">What happens next?</h4>
+        <ul style="color: #2c5282; text-align: left; margin-left: 20px;">
+            <li>Share the code <strong>{{ code }}</strong> with anyone</li>
+            <li>They can access your drop at: <code>{{ request.url_root }}d/{{ code }}</code></li>
+            <li>Files will be automatically deleted after {{ config.DROP_EXPIRY_HOURS }} hours</li>
+            <li>You can create new drops anytime</li>
+        </ul>
+    </div>
+    
+    <div style="margin-top: 30px;">
+        <a href="{{ url_for('home') }}" class="btn">
+            🏠 Create Another Drop
+        </a>
+        <a href="{{ url_for('view_drop', code=code) }}" class="btn btn-secondary" style="margin-left: 10px;">
+            👀 View Drop
+        </a>
+    </div>
+</div>
+
+<script>
+function copyCode() {
+    const code = '{{ code }}';
+    navigator.clipboard.writeText(code).then(function() {
+        alert('Code copied to clipboard!');
+    }).catch(function() {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Code copied to clipboard!');
+    });
+}
+
+function shareCode() {
+    const code = '{{ code }}';
+    const url = '{{ request.url_root }}d/' + code;
+    const shareData = {
+        title: 'File Drop - Code ' + code,
+        text: 'Access my file drop with code: ' + code,
+        url: url
+    };
+    
+    if (navigator.share) {
+        navigator.share(shareData);
+    } else {
+        // Fallback: copy URL to clipboard
+        navigator.clipboard.writeText(url).then(function() {
+            alert('Drop URL copied to clipboard!');
+        }).catch(function() {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Drop URL copied to clipboard!');
+        });
+    }
+}
+</script>
+{% endblock %}

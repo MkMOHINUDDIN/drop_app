@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Send Section -->
+    <div class="card">
+        <h2>📤 Send Files & Text</h2>
+        <form action="{{ url_for('send') }}" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="text_content">Text Content (Optional)</label>
+                <textarea 
+                    id="text_content" 
+                    name="text_content" 
+                    placeholder="Paste your text here..."
+                    maxlength="10000"
+                ></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="files">Files (Optional)</label>
+                <input 
+                    type="file" 
+                    id="files" 
+                    name="files" 
+                    multiple 
+                    accept="*/*"
+                >
+                <small style="color: #718096; margin-top: 5px; display: block;">
+                    You can select multiple files. Maximum {{ config.MAX_CONTENT_LENGTH_MB }}MB total.
+                </small>
+            </div>
+            
+            <button type="submit" class="btn">
+                🚀 Create Drop
+            </button>
+        </form>
+    </div>
+    
+    <!-- Receive Section -->
+    <div class="card">
+        <h2>📥 Receive Files & Text</h2>
+        <form action="{{ url_for('receive') }}" method="post">
+            <div class="form-group">
+                <label for="code">4-Digit Access Code</label>
+                <input 
+                    type="text" 
+                    id="code" 
+                    name="code" 
+                    placeholder="0000" 
+                    maxlength="4" 
+                    pattern="[0-9]{4}"
+                    required
+                    style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;"
+                >
+            </div>
+            
+            <button type="submit" class="btn">
+                🔓 Open Drop
+            </button>
+        </form>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #3182ce;">
+            <h4 style="color: #2a4365; margin-bottom: 10px;">How it works:</h4>
+            <ul style="color: #4a5568; margin-left: 20px;">
+                <li>Enter the 4-digit code you received</li>
+                <li>View shared text and download files</li>
+                <li>Files expire after {{ config.DROP_EXPIRY_HOURS }} hours</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="grid-column: 1 / -1; margin-top: 20px;">
+    <h2>✨ Features</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🔐</div>
+            <h4>Secure & Private</h4>
+            <p style="color: #718096;">Files are automatically deleted after expiration</p>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>
+            <h4>Instant Sharing</h4>
+            <p style="color: #718096;">Get a 4-digit code immediately after upload</p>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">📱</div>
+            <h4>Any Device</h4>
+            <p style="color: #718096;">Works on desktop, tablet, and mobile</p>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">📦</div>
+            <h4>Multiple Files</h4>
+            <p style="color: #718096;">Upload multiple files and text together</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

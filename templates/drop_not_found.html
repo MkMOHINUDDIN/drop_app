@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Drop Not Found - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">❌</div>
+    
+    <h2 style="color: #e53e3e; margin-bottom: 20px;">Drop Not Found</h2>
+    
+    <div style="background: #fed7d7; border: 1px solid #feb2b2; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h4 style="color: #742a2a; margin-bottom: 10px;">Code: {{ code }}</h4>
+        <p style="color: #9b2c2c;">
+            This drop either doesn't exist or has expired. Drops are automatically deleted after {{ config.DROP_EXPIRY_HOURS }} hours.
+        </p>
+    </div>
+    
+    <div style="background: #bee3f8; border: 1px solid #90cdf4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h4 style="color: #2a4365; margin-bottom: 10px;">Possible reasons:</h4>
+        <ul style="color: #2c5282; text-align: left; margin-left: 20px;">
+            <li>The code was entered incorrectly</li>
+            <li>The drop has expired ({{ config.DROP_EXPIRY_HOURS }} hours)</li>
+            <li>The drop was never created</li>
+            <li>The code was already used and deleted</li>
+        </ul>
+    </div>
+    
+    <div style="margin-top: 30px;">
+        <a href="{{ url_for('home') }}" class="btn">
+            🏠 Go Home
+        </a>
+        <button onclick="tryAgain()" class="btn btn-secondary" style="margin-left: 10px;">
+            🔄 Try Another Code
+        </button>
+    </div>
+</div>
+
+<script>
+function tryAgain() {
+    const code = prompt('Enter a 4-digit code:');
+    if (code && code.length === 4 && /^\d{4}$/.test(code)) {
+        window.location.href = '/d/' + code;
+    } else if (code) {
+        alert('Please enter a valid 4-digit code.');
+    }
+}
+</script>
+{% endblock %}
