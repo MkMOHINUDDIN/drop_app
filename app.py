@@ -41,6 +41,12 @@ app.config.from_object(Config)
 # Ensure storage directory exists
 os.makedirs(app.config['STORAGE_PATH'], exist_ok=True)
 
+# Register extension blueprints (Session Drop, QR codes)
+from routes.session_routes import session_bp
+from routes.qr_routes import qr_bp
+app.register_blueprint(session_bp)
+app.register_blueprint(qr_bp)
+
 def init_db():
     """Initialize the SQLite database with required tables."""
     # Ensure the directory exists
@@ -78,6 +84,10 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_drops_code ON drops (code)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_drops_expires ON drops (expires_at)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_files_drop_code ON files (drop_code)')
+
+    # Session Drop tables (additive — does not modify drops/files)
+    from db.session_schema import init_session_tables
+    init_session_tables(cursor)
     
     conn.commit()
     conn.close()
@@ -428,3 +438,6 @@ if __name__ == '__main__':
     
     # Run the application
     app.run(debug=True, host='0.0.0.0', port=5000)
+else:
+    # Initialize database for WSGI servers (gunicorn, etc.)
+    init_db()

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Session View - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <h2>👀 {% if session.session_name %}{{ session.session_name }}{% else %}Session Drop{% endif %}</h2>
+        <div style="background: #bee3f8; color: #2a4365; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem;">
+            Viewer Access
+        </div>
+    </div>
+
+    {% if files %}
+    <ul class="file-list" id="session-file-list">
+        {% for file in files %}
+        <li class="file-item" data-file-id="{{ file.id }}">
+            <div class="file-info">
+                <div class="file-name">{{ file.original_filename }}</div>
+                <div class="file-size">
+                    {{ format_file_size(file.file_size) }} ·
+                    {{ file.created_at.strftime('%Y-%m-%d %H:%M') if file.created_at else '' }}
+                </div>
+                {% if file.note %}
+                <div style="color: #4a5568; margin-top: 6px; font-size: 0.95rem;">{{ file.note }}</div>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('session.download_viewer_file', viewer_code=session.viewer_code, file_id=file.id) }}" class="btn">
+                ⬇️ Download
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #718096;">
+        <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+        <h3>No files yet</h3>
+        <p>The session owner has not uploaded any files.</p>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 30px; text-align: center;">
+        <a href="{{ url_for('home') }}" class="btn">🏠 Back Home</a>
+    </div>
+</div>
+{% endblock %}

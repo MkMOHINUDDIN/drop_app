@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Session Created - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 700px; margin: 0 auto; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🔄</div>
+
+    <h2 style="color: #38a169; margin-bottom: 20px;">Session Drop Created!</h2>
+
+    <div style="background: #fed7d7; border: 1px solid #fc8181; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: left;">
+        <strong style="color: #742a2a;">Keep your Owner Code private.</strong>
+        <span style="color: #742a2a;"> Only share the Viewer Code with others.</span>
+    </div>
+
+    <div class="code-display">
+        <div style="font-size: 0.9rem; color: #718096; margin-bottom: 8px;">Owner Code (private)</div>
+        <div class="code" style="font-size: 1.1rem; letter-spacing: 2px; word-break: break-all;">{{ session.owner_code }}</div>
+        <button onclick="copyText('{{ session.owner_code }}', 'Owner code copied!')" class="btn btn-secondary" style="margin-top: 10px;">
+            📋 Copy Owner Code
+        </button>
+    </div>
+
+    <div class="code-display">
+        <div style="font-size: 0.9rem; color: #718096; margin-bottom: 8px;">Viewer Code (share publicly)</div>
+        <div class="code" style="font-size: 1.1rem; letter-spacing: 2px; word-break: break-all;">{{ session.viewer_code }}</div>
+        <button onclick="copyText('{{ session.viewer_code }}', 'Viewer code copied!')" class="btn btn-success" style="margin-top: 10px; margin-right: 10px;">
+            📋 Copy Viewer Code
+        </button>
+    </div>
+
+    <div class="code-display" style="margin-top: 0;">
+        <div style="font-size: 0.9rem; color: #718096; margin-bottom: 10px;">Viewer QR — scan to open session</div>
+        <img src="{{ url_for('qr.session_viewer_qr', viewer_code=session.viewer_code) }}"
+             alt="QR code for session viewer"
+             style="max-width: 220px; width: 100%; height: auto;">
+        <div style="margin-top: 10px;">
+            <a href="{{ url_for('qr.session_viewer_qr', viewer_code=session.viewer_code) }}"
+               download="session-viewer-{{ session.viewer_code }}-qr.png"
+               class="btn btn-secondary">
+                ⬇️ Download Viewer QR
+            </a>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <a href="{{ url_for('session.manage_session', owner_code=session.owner_code) }}" class="btn">
+            ⚙️ Open Owner Dashboard
+        </a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary" style="margin-left: 10px;">
+            🏠 Back Home
+        </a>
+    </div>
+</div>
+
+<script>
+function copyText(text, message) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert(message);
+    }).catch(function() {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert(message);
+    });
+}
+</script>
+{% endblock %}

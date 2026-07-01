@@ -14,6 +14,18 @@
             Expires: {{ expires_at.strftime('%Y-%m-%d at %H:%M') }}
         </div>
     </div>
+
+    <div class="code-display" style="margin-top: 0;">
+        <div style="font-size: 0.9rem; color: #718096; margin-bottom: 10px;">Scan to open drop</div>
+        <img src="{{ url_for('qr.drop_qr', code=code) }}"
+             alt="QR code for drop {{ code }}"
+             style="max-width: 220px; width: 100%; height: auto;">
+        <div style="margin-top: 10px;">
+            <a href="{{ url_for('qr.drop_qr', code=code) }}" download="drop-{{ code }}-qr.png" class="btn btn-secondary">
+                ⬇️ Download QR
+            </a>
+        </div>
+    </div>
     
     <div style="background: #c6f6d5; border: 1px solid #9ae6b4; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <h4 style="color: #22543d; margin-bottom: 10px;">Share this code with others:</h4>

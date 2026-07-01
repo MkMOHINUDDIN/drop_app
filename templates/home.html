@@ -34,6 +34,22 @@
                 🚀 Create Drop
             </button>
         </form>
+
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <h3 style="color: #4a5568; margin-bottom: 10px; font-size: 1.1rem;">🔄 Session Drop</h3>
+            <p style="color: #718096; margin-bottom: 15px; font-size: 0.95rem;">
+                Create a persistent session. Upload files over time with one viewer link — no new codes each time.
+            </p>
+            <form action="{{ url_for('session.create') }}" method="post">
+                <div class="form-group">
+                    <label for="session_name">Session Name (optional)</label>
+                    <input type="text" id="session_name" name="session_name" placeholder="Team file share" maxlength="100">
+                </div>
+                <button type="submit" class="btn btn-secondary">
+                    🔄 Create Session Drop
+                </button>
+            </form>
+        </div>
     </div>
     
     <!-- Receive Section -->
@@ -66,6 +82,24 @@
                 <li>View shared text and download files</li>
                 <li>Files expire after {{ config.DROP_EXPIRY_HOURS }} hours</li>
             </ul>
+        </div>
+
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <h3 style="color: #4a5568; margin-bottom: 10px; font-size: 1.1rem;">🔄 Open Session Drop</h3>
+            <form action="{{ url_for('session.open_viewer') }}" method="post" style="margin-bottom: 15px;">
+                <div class="form-group">
+                    <label for="viewer_code">Session Viewer Code</label>
+                    <input type="text" id="viewer_code" name="viewer_code" placeholder="16-character code" maxlength="16" style="text-align: center; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase;">
+                </div>
+                <button type="submit" class="btn btn-secondary">👀 Open Session (Viewer)</button>
+            </form>
+            <form action="{{ url_for('session.open_owner') }}" method="post">
+                <div class="form-group">
+                    <label for="owner_code">Session Owner Code</label>
+                    <input type="text" id="owner_code" name="owner_code" placeholder="16-character code" maxlength="16" style="text-align: center; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase;">
+                </div>
+                <button type="submit" class="btn">⚙️ Manage Session (Owner)</button>
+            </form>
         </div>
     </div>
 </div>

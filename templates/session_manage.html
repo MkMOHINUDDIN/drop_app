@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Session - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <h2>⚙️ Session Owner Dashboard</h2>
+        <div style="background: #c6f6d5; color: #22543d; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem;">
+            Active Session
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="session_name">Session Name (optional)</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="session_name" value="{{ session.session_name or '' }}" placeholder="My shared session" maxlength="100" style="flex: 1; min-width: 200px;">
+            <button type="button" onclick="saveSessionName()" class="btn btn-secondary">Save Name</button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div class="code-display" style="margin: 0;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;">Owner Code (keep private)</div>
+            <div style="font-family: monospace; font-size: 0.95rem; word-break: break-all; color: #667eea;">{{ session.owner_code }}</div>
+            <button onclick="copyText('{{ session.owner_code }}')" class="btn btn-secondary" style="margin-top: 10px; font-size: 0.9rem; padding: 8px 16px;">📋 Copy</button>
+            <div style="margin-top: 12px;">
+                <img src="{{ url_for('qr.session_owner_qr', owner_code=session.owner_code) }}" alt="Owner QR" style="max-width: 120px; width: 100%; height: auto;">
+            </div>
+        </div>
+        <div class="code-display" style="margin: 0;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;">Viewer Code (share with others)</div>
+            <div style="font-family: monospace; font-size: 0.95rem; word-break: break-all; color: #667eea;">{{ session.viewer_code }}</div>
+            <button onclick="copyText('{{ session.viewer_code }}')" class="btn btn-success" style="margin-top: 10px; font-size: 0.9rem; padding: 8px 16px;">📋 Copy</button>
+            <div style="margin-top: 12px;">
+                <img src="{{ url_for('qr.session_viewer_qr', viewer_code=session.viewer_code) }}" alt="Viewer QR" style="max-width: 120px; width: 100%; height: auto;">
+            </div>
+        </div>
+    </div>
+
+    <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <h3 style="color: #4a5568; margin-bottom: 15px;">📤 Upload File</h3>
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="upload_file">File</label>
+            <input type="file" id="upload_file" accept="*/*">
+        </div>
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="upload_note">Note (optional, max {{ max_note_length }} chars)</label>
+            <textarea id="upload_note" placeholder="e.g. Updated Chapter 5" maxlength="{{ max_note_length }}" style="min-height: 80px;"></textarea>
+        </div>
+        <button type="button" id="upload_btn" onclick="uploadFile()" class="btn">🚀 Upload to Session</button>
+        <div id="upload_status" style="margin-top: 10px; color: #718096; font-size: 0.9rem;"></div>
+    </div>
+
+    <div>
+        <h3 style="color: #4a5568; margin-bottom: 15px;">📁 Uploaded Files (newest first)</h3>
+        <ul class="file-list" id="session-file-list">
+            {% for file in files %}
+            <li class="file-item" data-file-id="{{ file.id }}" draggable="true">
+                <div class="file-info" style="flex: 1;">
+                    <div class="file-name">{{ file.original_filename }}</div>
+                    <div class="file-size">
+                        {{ format_file_size(file.file_size) }} ·
+                        {{ file.created_at.strftime('%Y-%m-%d %H:%M') if file.created_at else '' }}
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <textarea class="file-note-input" data-file-id="{{ file.id }}" maxlength="{{ max_note_length }}" placeholder="Add a note..." style="min-height: 60px; font-size: 0.9rem;">{{ file.note or '' }}</textarea>
+                        <button type="button" onclick="saveNote({{ file.id }})" class="btn btn-secondary" style="margin-top: 6px; font-size: 0.85rem; padding: 6px 12px;">Save Note</button>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 10px;">
+                    <a href="{{ url_for('session.download_owner_file', owner_code=session.owner_code, file_id=file.id) }}" class="btn" style="font-size: 0.9rem; padding: 8px 14px;">⬇️ Download</a>
+                    <button type="button" onclick="deleteFile({{ file.id }})" class="btn btn-danger" style="font-size: 0.9rem; padding: 8px 14px;">🗑️ Delete</button>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        <div id="empty-state" style="text-align: center; padding: 30px; color: #718096; {% if files %}display: none;{% endif %}">
+            <p>No files uploaded yet. Use the form above to add your first file.</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+        <a href="{{ url_for('session.view_session', viewer_code=session.viewer_code) }}" class="btn btn-secondary">👀 Preview Viewer Page</a>
+        <button type="button" onclick="closeSession()" class="btn btn-danger">🔒 Close Session</button>
+        <a href="{{ url_for('home') }}" class="btn">🏠 Back Home</a>
+    </div>
+</div>
+
+<script>
+const OWNER_CODE = '{{ session.owner_code }}';
+const MAX_NOTE_LENGTH = {{ max_note_length }};
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('Copied to clipboard!');
+    }).catch(function() {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Copied to clipboard!');
+    });
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function formatDate(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function buildFileItem(file) {
+    const li = document.createElement('li');
+    li.className = 'file-item';
+    li.dataset.fileId = file.id;
+    li.draggable = true;
+    li.innerHTML = `
+        <div class="file-info" style="flex: 1;">
+            <div class="file-name">${escapeHtml(file.original_filename)}</div>
+            <div class="file-size">${formatFileSize(file.file_size)} · ${formatDate(file.created_at)}</div>
+            <div style="margin-top: 8px;">
+                <textarea class="file-note-input" data-file-id="${file.id}" maxlength="${MAX_NOTE_LENGTH}" placeholder="Add a note..." style="min-height: 60px; font-size: 0.9rem;">${escapeHtml(file.note || '')}</textarea>
+                <button type="button" onclick="saveNote(${file.id})" class="btn btn-secondary" style="margin-top: 6px; font-size: 0.85rem; padding: 6px 12px;">Save Note</button>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 10px;">
+            <a href="/session/owner-download/${OWNER_CODE}/${file.id}" class="btn" style="font-size: 0.9rem; padding: 8px 14px;">⬇️ Download</a>
+            <button type="button" onclick="deleteFile(${file.id})" class="btn btn-danger" style="font-size: 0.9rem; padding: 8px 14px;">🗑️ Delete</button>
+        </div>
+    `;
+    setupDragDrop(li);
+    return li;
+}
+
+function prependFile(file) {
+    const list = document.getElementById('session-file-list');
+    const empty = document.getElementById('empty-state');
+    if (empty) empty.style.display = 'none';
+    list.insertBefore(buildFileItem(file), list.firstChild);
+}
+
+async function uploadFile() {
+    const fileInput = document.getElementById('upload_file');
+    const noteInput = document.getElementById('upload_note');
+    const status = document.getElementById('upload_status');
+    const btn = document.getElementById('upload_btn');
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        status.textContent = 'Please select a file to upload.';
+        status.style.color = '#e53e3e';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('note', noteInput.value.trim());
+
+    btn.disabled = true;
+    status.textContent = 'Uploading...';
+    status.style.color = '#718096';
+
+    try {
+        const res = await fetch(`/api/session/upload/${OWNER_CODE}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.ok) {
+            prependFile(data.file);
+            fileInput.value = '';
+            noteInput.value = '';
+            status.textContent = 'Upload complete!';
+            status.style.color = '#38a169';
+        } else {
+            status.textContent = data.error || 'Upload failed.';
+            status.style.color = '#e53e3e';
+        }
+    } catch (err) {
+        status.textContent = 'Network error. Please try again.';
+        status.style.color = '#e53e3e';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function deleteFile(fileId) {
+    if (!confirm('Delete this file?')) return;
+
+    try {
+        const res = await fetch(`/api/session/file/${fileId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner_code: OWNER_CODE })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            const item = document.querySelector(`[data-file-id="${fileId}"]`);
+            if (item) item.remove();
+            const list = document.getElementById('session-file-list');
+            if (list.children.length === 0) {
+                document.getElementById('empty-state').style.display = 'block';
+            }
+        } else {
+            alert(data.error || 'Could not delete file.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+}
+
+async function saveNote(fileId) {
+    const textarea = document.querySelector(`.file-note-input[data-file-id="${fileId}"]`);
+    const note = textarea.value.trim();
+
+    try {
+        const res = await fetch(`/api/session/file/${fileId}/note`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner_code: OWNER_CODE, note: note })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            alert('Note saved.');
+        } else {
+            alert(data.error || 'Could not save note.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+}
+
+async function saveSessionName() {
+    const name = document.getElementById('session_name').value.trim();
+    try {
+        const res = await fetch(`/api/session/${OWNER_CODE}/name`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_name: name })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            alert('Session name saved.');
+        } else {
+            alert(data.error || 'Could not save name.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+}
+
+async function closeSession() {
+    if (!confirm('Close this session permanently? All files will be deleted.')) return;
+
+    try {
+        const res = await fetch(`/api/session/${OWNER_CODE}/close`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+            window.location.href = '/';
+        } else {
+            alert(data.error || 'Could not close session.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+}
+
+async function persistOrder() {
+    const list = document.getElementById('session-file-list');
+    const fileIds = Array.from(list.querySelectorAll('.file-item')).map(el => parseInt(el.dataset.fileId, 10));
+    try {
+        await fetch(`/api/session/${OWNER_CODE}/reorder`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_ids: fileIds })
+        });
+    } catch (err) {
+        // Silent fail for reorder — order is cosmetic
+    }
+}
+
+let draggedItem = null;
+
+function setupDragDrop(item) {
+    item.addEventListener('dragstart', function() {
+        draggedItem = item;
+        item.style.opacity = '0.5';
+    });
+    item.addEventListener('dragend', function() {
+        item.style.opacity = '1';
+        draggedItem = null;
+        persistOrder();
+    });
+    item.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const list = document.getElementById('session-file-list');
+        if (!draggedItem || draggedItem === item) return;
+        const rect = item.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+            list.insertBefore(draggedItem, item);
+        } else {
+            list.insertBefore(draggedItem, item.nextSibling);
+        }
+    });
+}
+
+document.querySelectorAll('.file-item').forEach(setupDragDrop);
+</script>
+{% endblock %}

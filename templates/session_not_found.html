@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Session Not Found - Send ↔ Receive{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+    <h2 style="color: #e53e3e; margin-bottom: 20px;">Session Not Found</h2>
+    <p style="color: #718096; margin-bottom: 20px;">
+        {% if role == 'owner' %}
+        The owner code <strong>{{ code }}</strong> is invalid or this session has been closed.
+        {% else %}
+        The viewer code <strong>{{ code }}</strong> is invalid or this session has been closed.
+        {% endif %}
+    </p>
+    <a href="{{ url_for('home') }}" class="btn">🏠 Back Home</a>
+</div>
+{% endblock %}
