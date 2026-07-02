@@ -3,13 +3,14 @@
 import os
 import shutil
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from services.file_service import save_uploaded_file
 from utils.codes import (
     MAX_NOTE_LENGTH,
     generate_unique_session_codes,
     is_valid_session_code,
+    normalize_session_code,
 )
 
 
@@ -30,6 +31,7 @@ def _row_to_session(row):
         'created_at': _parse_datetime(row[4]),
         'updated_at': _parse_datetime(row[5]),
         'is_active': bool(row[6]),
+        'expires_at': _parse_datetime(row[7]) if len(row) > 7 else None,
     }
 
 
@@ -44,6 +46,7 @@ def _row_to_file(row):
         'note': row[6] or '',
         'upload_order': row[7],
         'created_at': _parse_datetime(row[8]),
+        'item_type': row[9] if len(row) > 9 else 'file',
     }
 
 
@@ -51,20 +54,21 @@ def get_session_storage_path(storage_path, session_id):
     return os.path.join(storage_path, 'sessions', str(session_id))
 
 
-def create_session(database_path, storage_path, session_name=None):
+def create_session(database_path, storage_path, session_name=None, expiry_hours=24):
     """Create a new session with unique owner and viewer codes."""
     owner_code, viewer_code = generate_unique_session_codes(database_path)
     name = (session_name or '').strip() or None
+    expires_at = (datetime.now() + timedelta(hours=expiry_hours)).isoformat()
 
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
     try:
         cursor.execute(
             '''
-            INSERT INTO sessions (owner_code, viewer_code, session_name)
-            VALUES (?, ?, ?)
+            INSERT INTO sessions (owner_code, viewer_code, session_name, expires_at)
+            VALUES (?, ?, ?, ?)
             ''',
-            (owner_code, viewer_code, name),
+            (owner_code, viewer_code, name, expires_at),
         )
         session_id = cursor.lastrowid
         conn.commit()
@@ -79,17 +83,19 @@ def create_session(database_path, storage_path, session_name=None):
 
 def get_session_by_owner_code(database_path, owner_code):
     """Fetch active session by owner code."""
-    if not is_valid_session_code(owner_code):
+    owner_code = normalize_session_code(owner_code)
+    if not owner_code:
         return None
 
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
     cursor.execute(
         '''
-        SELECT id, owner_code, viewer_code, session_name, created_at, updated_at, is_active
-        FROM sessions WHERE owner_code = ? AND is_active = 1
+        SELECT id, owner_code, viewer_code, session_name, created_at, updated_at, is_active, expires_at
+        FROM sessions
+        WHERE owner_code = ? AND is_active = 1 AND expires_at > ?
         ''',
-        (owner_code.upper(),),
+        (owner_code, datetime.now().isoformat()),
     )
     row = cursor.fetchone()
     conn.close()
@@ -98,17 +104,19 @@ def get_session_by_owner_code(database_path, owner_code):
 
 def get_session_by_viewer_code(database_path, viewer_code):
     """Fetch active session by viewer code."""
-    if not is_valid_session_code(viewer_code):
+    viewer_code = normalize_session_code(viewer_code)
+    if not viewer_code:
         return None
 
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
     cursor.execute(
         '''
-        SELECT id, owner_code, viewer_code, session_name, created_at, updated_at, is_active
-        FROM sessions WHERE viewer_code = ? AND is_active = 1
+        SELECT id, owner_code, viewer_code, session_name, created_at, updated_at, is_active, expires_at
+        FROM sessions
+        WHERE viewer_code = ? AND is_active = 1 AND expires_at > ?
         ''',
-        (viewer_code.upper(),),
+        (viewer_code, datetime.now().isoformat()),
     )
     row = cursor.fetchone()
     conn.close()
@@ -122,7 +130,7 @@ def get_session_files(database_path, session_id):
     cursor.execute(
         '''
         SELECT id, session_id, filename, original_filename, file_path, file_size, note,
-               upload_order, created_at
+               upload_order, created_at, item_type
         FROM session_files
         WHERE session_id = ?
         ORDER BY upload_order DESC
@@ -141,7 +149,7 @@ def get_session_file(database_path, file_id):
     cursor.execute(
         '''
         SELECT id, session_id, filename, original_filename, file_path, file_size, note,
-               upload_order, created_at
+               upload_order, created_at, item_type
         FROM session_files WHERE id = ?
         ''',
         (file_id,),
@@ -152,7 +160,10 @@ def get_session_file(database_path, file_id):
 
 
 def upload_session_file(database_path, storage_path, owner_code, file_storage, note=''):
-    """Upload a file to an active session. Returns the new file record or raises ValueError."""
+    """
+    Add a file and/or message to an active session.
+    File is optional; a note/message alone creates a text drop in the session.
+    """
     session = get_session_by_owner_code(database_path, owner_code)
     if not session:
         raise ValueError('Invalid or inactive owner code.')
@@ -161,10 +172,9 @@ def upload_session_file(database_path, storage_path, owner_code, file_storage, n
     if len(note) > MAX_NOTE_LENGTH:
         raise ValueError(f'Note must be {MAX_NOTE_LENGTH} characters or fewer.')
 
-    session_dir = get_session_storage_path(storage_path, session['id'])
-    saved = save_uploaded_file(file_storage, session_dir)
-    if not saved:
-        raise ValueError('No valid file provided.')
+    has_file = file_storage and file_storage.filename
+    if not has_file and not note:
+        raise ValueError('Please provide a file or a message.')
 
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
@@ -175,22 +185,40 @@ def upload_session_file(database_path, storage_path, owner_code, file_storage, n
         )
         upload_order = cursor.fetchone()[0]
 
-        cursor.execute(
-            '''
-            INSERT INTO session_files
-            (session_id, filename, original_filename, file_path, file_size, note, upload_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''',
-            (
-                session['id'],
-                saved['filename'],
-                saved['original_filename'],
-                saved['file_path'],
-                saved['file_size'],
-                note or None,
-                upload_order,
-            ),
-        )
+        if has_file:
+            session_dir = get_session_storage_path(storage_path, session['id'])
+            saved = save_uploaded_file(file_storage, session_dir)
+            if not saved:
+                raise ValueError('No valid file provided.')
+
+            cursor.execute(
+                '''
+                INSERT INTO session_files
+                (session_id, filename, original_filename, file_path, file_size, note,
+                 upload_order, item_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'file')
+                ''',
+                (
+                    session['id'],
+                    saved['filename'],
+                    saved['original_filename'],
+                    saved['file_path'],
+                    saved['file_size'],
+                    note or None,
+                    upload_order,
+                ),
+            )
+        else:
+            cursor.execute(
+                '''
+                INSERT INTO session_files
+                (session_id, filename, original_filename, file_path, file_size, note,
+                 upload_order, item_type)
+                VALUES (?, '', 'Message', '', 0, ?, ?, 'message')
+                ''',
+                (session['id'], note, upload_order),
+            )
+
         file_id = cursor.lastrowid
         cursor.execute(
             'UPDATE sessions SET updated_at = ? WHERE id = ?',
@@ -213,11 +241,12 @@ def delete_session_file(database_path, storage_path, owner_code, file_id):
     if not file_record or file_record['session_id'] != session['id']:
         return False
 
-    if os.path.exists(file_record['file_path']):
-        try:
-            os.remove(file_record['file_path'])
-        except OSError:
-            pass  # File may be locked or already removed
+    if file_record['item_type'] != 'message' and file_record['file_path']:
+        if os.path.exists(file_record['file_path']):
+            try:
+                os.remove(file_record['file_path'])
+            except OSError:
+                pass  # File may be locked or already removed
 
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
@@ -312,6 +341,35 @@ def close_session(database_path, storage_path, owner_code):
     return True
 
 
+def cleanup_expired_sessions(database_path, storage_path):
+    """Remove expired session drops and their files."""
+    conn = sqlite3.connect(database_path)
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+
+    cursor.execute(
+        '''
+        SELECT id FROM sessions
+        WHERE is_active = 1 AND expires_at IS NOT NULL AND expires_at <= ?
+        ''',
+        (now,),
+    )
+    expired_ids = [row[0] for row in cursor.fetchall()]
+
+    for session_id in expired_ids:
+        session_dir = get_session_storage_path(storage_path, session_id)
+        if os.path.exists(session_dir):
+            shutil.rmtree(session_dir)
+        cursor.execute('DELETE FROM session_files WHERE session_id = ?', (session_id,))
+        cursor.execute(
+            'UPDATE sessions SET is_active = 0, updated_at = ? WHERE id = ?',
+            (now, session_id),
+        )
+
+    conn.commit()
+    conn.close()
+
+
 def reorder_session_files(database_path, owner_code, file_ids):
     """Reorder files by assigning upload_order from highest to lowest for given ids."""
     session = get_session_by_owner_code(database_path, owner_code)
@@ -352,6 +410,8 @@ def file_record_to_json(file_record):
         'original_filename': file_record['original_filename'],
         'file_size': file_record['file_size'],
         'note': file_record['note'],
+        'item_type': file_record.get('item_type', 'file'),
+        'is_message': file_record.get('item_type') == 'message',
         'created_at': file_record['created_at'].isoformat() if file_record['created_at'] else None,
         'upload_order': file_record['upload_order'],
     }

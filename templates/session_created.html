@@ -15,7 +15,7 @@
 
     <div class="code-display">
         <div style="font-size: 0.9rem; color: #718096; margin-bottom: 8px;">Owner Code (private)</div>
-        <div class="code" style="font-size: 1.1rem; letter-spacing: 2px; word-break: break-all;">{{ session.owner_code }}</div>
+        <div class="code">{{ session.owner_code }}</div>
         <button onclick="copyText('{{ session.owner_code }}', 'Owner code copied!')" class="btn btn-secondary" style="margin-top: 10px;">
             📋 Copy Owner Code
         </button>
@@ -23,7 +23,7 @@
 
     <div class="code-display">
         <div style="font-size: 0.9rem; color: #718096; margin-bottom: 8px;">Viewer Code (share publicly)</div>
-        <div class="code" style="font-size: 1.1rem; letter-spacing: 2px; word-break: break-all;">{{ session.viewer_code }}</div>
+        <div class="code">{{ session.viewer_code }}</div>
         <button onclick="copyText('{{ session.viewer_code }}', 'Viewer code copied!')" class="btn btn-success" style="margin-top: 10px; margin-right: 10px;">
             📋 Copy Viewer Code
         </button>

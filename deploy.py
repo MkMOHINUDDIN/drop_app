@@ -21,7 +21,7 @@ def setup_environment():
         
         with open(env_file, 'w') as f:
             f.write(f"SECRET_KEY={generate_secret_key()}\n")
-            f.write("MAX_CONTENT_LENGTH_MB=200\n")
+            f.write("MAX_CONTENT_LENGTH_MB=400\n")
             f.write("DROP_EXPIRY_HOURS=24\n")
             f.write("DATABASE_PATH=drops.db\n")
             f.write("STORAGE_PATH=storage\n")

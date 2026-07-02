@@ -89,14 +89,14 @@
             <form action="{{ url_for('session.open_viewer') }}" method="post" style="margin-bottom: 15px;">
                 <div class="form-group">
                     <label for="viewer_code">Session Viewer Code</label>
-                    <input type="text" id="viewer_code" name="viewer_code" placeholder="16-character code" maxlength="16" style="text-align: center; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase;">
+                    <input type="text" id="viewer_code" name="viewer_code" placeholder="0000" maxlength="4" pattern="[0-9]{4}" style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
                 </div>
                 <button type="submit" class="btn btn-secondary">👀 Open Session (Viewer)</button>
             </form>
             <form action="{{ url_for('session.open_owner') }}" method="post">
                 <div class="form-group">
                     <label for="owner_code">Session Owner Code</label>
-                    <input type="text" id="owner_code" name="owner_code" placeholder="16-character code" maxlength="16" style="text-align: center; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase;">
+                    <input type="text" id="owner_code" name="owner_code" placeholder="0000" maxlength="4" pattern="[0-9]{4}" style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
                 </div>
                 <button type="submit" class="btn">⚙️ Manage Session (Owner)</button>
             </form>

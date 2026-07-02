@@ -22,7 +22,7 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
         <div class="code-display" style="margin: 0;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;">Owner Code (keep private)</div>
-            <div style="font-family: monospace; font-size: 0.95rem; word-break: break-all; color: #667eea;">{{ session.owner_code }}</div>
+            <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: #667eea; letter-spacing: 4px;">{{ session.owner_code }}</div>
             <button onclick="copyText('{{ session.owner_code }}')" class="btn btn-secondary" style="margin-top: 10px; font-size: 0.9rem; padding: 8px 16px;">📋 Copy</button>
             <div style="margin-top: 12px;">
                 <img src="{{ url_for('qr.session_owner_qr', owner_code=session.owner_code) }}" alt="Owner QR" style="max-width: 120px; width: 100%; height: auto;">
@@ -30,7 +30,7 @@
         </div>
         <div class="code-display" style="margin: 0;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 8px;">Viewer Code (share with others)</div>
-            <div style="font-family: monospace; font-size: 0.95rem; word-break: break-all; color: #667eea;">{{ session.viewer_code }}</div>
+            <div style="font-family: monospace; font-size: 2rem; font-weight: bold; color: #667eea; letter-spacing: 4px;">{{ session.viewer_code }}</div>
             <button onclick="copyText('{{ session.viewer_code }}')" class="btn btn-success" style="margin-top: 10px; font-size: 0.9rem; padding: 8px 16px;">📋 Copy</button>
             <div style="margin-top: 12px;">
                 <img src="{{ url_for('qr.session_viewer_qr', viewer_code=session.viewer_code) }}" alt="Viewer QR" style="max-width: 120px; width: 100%; height: auto;">
@@ -39,13 +39,13 @@
     </div>
 
     <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-        <h3 style="color: #4a5568; margin-bottom: 15px;">📤 Upload File</h3>
+        <h3 style="color: #4a5568; margin-bottom: 15px;">📤 Upload File or Message</h3>
         <div class="form-group" style="margin-bottom: 15px;">
-            <label for="upload_file">File</label>
+            <label for="upload_file">File (optional)</label>
             <input type="file" id="upload_file" accept="*/*">
         </div>
         <div class="form-group" style="margin-bottom: 15px;">
-            <label for="upload_note">Note (optional, max {{ max_note_length }} chars)</label>
+            <label for="upload_note">Message / Note (optional, max {{ max_note_length }} chars)</label>
             <textarea id="upload_note" placeholder="e.g. Updated Chapter 5" maxlength="{{ max_note_length }}" style="min-height: 80px;"></textarea>
         </div>
         <button type="button" id="upload_btn" onclick="uploadFile()" class="btn">🚀 Upload to Session</button>
@@ -58,25 +58,31 @@
             {% for file in files %}
             <li class="file-item" data-file-id="{{ file.id }}" draggable="true">
                 <div class="file-info" style="flex: 1;">
-                    <div class="file-name">{{ file.original_filename }}</div>
+                    <div class="file-name">{% if file.item_type == 'message' %}📝 Message{% else %}{{ file.original_filename }}{% endif %}</div>
                     <div class="file-size">
-                        {{ format_file_size(file.file_size) }} ·
+                        {% if file.item_type != 'message' %}{{ format_file_size(file.file_size) }} · {% endif %}
                         {{ file.created_at.strftime('%Y-%m-%d %H:%M') if file.created_at else '' }}
                     </div>
+                    {% if file.item_type == 'message' %}
+                    <div style="background: white; border: 1px solid #cbd5e0; border-radius: 6px; padding: 12px; margin-top: 8px; white-space: pre-wrap;">{{ file.note }}</div>
+                    {% else %}
                     <div style="margin-top: 8px;">
                         <textarea class="file-note-input" data-file-id="{{ file.id }}" maxlength="{{ max_note_length }}" placeholder="Add a note..." style="min-height: 60px; font-size: 0.9rem;">{{ file.note or '' }}</textarea>
                         <button type="button" onclick="saveNote({{ file.id }})" class="btn btn-secondary" style="margin-top: 6px; font-size: 0.85rem; padding: 6px 12px;">Save Note</button>
                     </div>
+                    {% endif %}
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 10px;">
+                    {% if file.item_type != 'message' %}
                     <a href="{{ url_for('session.download_owner_file', owner_code=session.owner_code, file_id=file.id) }}" class="btn" style="font-size: 0.9rem; padding: 8px 14px;">⬇️ Download</a>
+                    {% endif %}
                     <button type="button" onclick="deleteFile({{ file.id }})" class="btn btn-danger" style="font-size: 0.9rem; padding: 8px 14px;">🗑️ Delete</button>
                 </div>
             </li>
             {% endfor %}
         </ul>
         <div id="empty-state" style="text-align: center; padding: 30px; color: #718096; {% if files %}display: none;{% endif %}">
-            <p>No files uploaded yet. Use the form above to add your first file.</p>
+            <p>No files or messages yet. Use the form above to add content.</p>
         </div>
     </div>
 
@@ -125,21 +131,39 @@ function escapeHtml(text) {
 }
 
 function buildFileItem(file) {
+    const isMessage = file.is_message || file.item_type === 'message';
     const li = document.createElement('li');
     li.className = 'file-item';
     li.dataset.fileId = file.id;
     li.draggable = true;
-    li.innerHTML = `
-        <div class="file-info" style="flex: 1;">
-            <div class="file-name">${escapeHtml(file.original_filename)}</div>
-            <div class="file-size">${formatFileSize(file.file_size)} · ${formatDate(file.created_at)}</div>
+
+    const title = isMessage ? '📝 Message' : escapeHtml(file.original_filename);
+    const sizeLine = isMessage
+        ? formatDate(file.created_at)
+        : `${formatFileSize(file.file_size)} · ${formatDate(file.created_at)}`;
+
+    let bodyHtml = '';
+    if (isMessage) {
+        bodyHtml = `<div style="background: white; border: 1px solid #cbd5e0; border-radius: 6px; padding: 12px; margin-top: 8px; white-space: pre-wrap;">${escapeHtml(file.note || '')}</div>`;
+    } else {
+        bodyHtml = `
             <div style="margin-top: 8px;">
                 <textarea class="file-note-input" data-file-id="${file.id}" maxlength="${MAX_NOTE_LENGTH}" placeholder="Add a note..." style="min-height: 60px; font-size: 0.9rem;">${escapeHtml(file.note || '')}</textarea>
                 <button type="button" onclick="saveNote(${file.id})" class="btn btn-secondary" style="margin-top: 6px; font-size: 0.85rem; padding: 6px 12px;">Save Note</button>
-            </div>
+            </div>`;
+    }
+
+    const downloadHtml = isMessage ? '' :
+        `<a href="/session/owner-download/${OWNER_CODE}/${file.id}" class="btn" style="font-size: 0.9rem; padding: 8px 14px;">⬇️ Download</a>`;
+
+    li.innerHTML = `
+        <div class="file-info" style="flex: 1;">
+            <div class="file-name">${title}</div>
+            <div class="file-size">${sizeLine}</div>
+            ${bodyHtml}
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 10px;">
-            <a href="/session/owner-download/${OWNER_CODE}/${file.id}" class="btn" style="font-size: 0.9rem; padding: 8px 14px;">⬇️ Download</a>
+            ${downloadHtml}
             <button type="button" onclick="deleteFile(${file.id})" class="btn btn-danger" style="font-size: 0.9rem; padding: 8px 14px;">🗑️ Delete</button>
         </div>
     `;
@@ -160,15 +184,20 @@ async function uploadFile() {
     const status = document.getElementById('upload_status');
     const btn = document.getElementById('upload_btn');
 
-    if (!fileInput.files || !fileInput.files[0]) {
-        status.textContent = 'Please select a file to upload.';
+    const hasFile = fileInput.files && fileInput.files[0];
+    const note = noteInput.value.trim();
+
+    if (!hasFile && !note) {
+        status.textContent = 'Please select a file or enter a message.';
         status.style.color = '#e53e3e';
         return;
     }
 
     const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-    formData.append('note', noteInput.value.trim());
+    if (hasFile) {
+        formData.append('file', fileInput.files[0]);
+    }
+    formData.append('note', note);
 
     btn.disabled = true;
     status.textContent = 'Uploading...';

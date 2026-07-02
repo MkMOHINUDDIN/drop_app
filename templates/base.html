@@ -36,26 +36,67 @@
             position: absolute;
             top: 0;
             right: 0;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
+            width: 92px;
+            height: 92px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 50%;
             color: white;
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
             text-align: center;
-            line-height: 1.1;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 3px solid rgba(255,255,255,0.3);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            line-height: 1.15;
+            animation: logoFloat 4s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        .logo-orbit {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #ffffff, #667eea, #764ba2, #ffffff);
+            animation: logoSpin 5s linear infinite;
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
+        }
+
+        .logo-orbit::after {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+        }
+
+        .logo-text {
+            position: relative;
+            z-index: 2;
+            padding: 0 4px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+            animation: logoShimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes logoSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes logoShimmer {
+            0%, 100% { opacity: 1; letter-spacing: 0; }
+            50% { opacity: 0.92; letter-spacing: 0.5px; }
         }
         
         .logo:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            animation: logoFloat 2s ease-in-out infinite;
+        }
+
+        .logo:hover .logo-orbit {
+            animation-duration: 2.5s;
+            box-shadow: 0 0 24px rgba(255, 255, 255, 0.5);
         }
         
         .header h1 {
@@ -268,9 +309,9 @@
             }
             
             .logo {
-                width: 50px;
-                height: 50px;
-                font-size: 0.7rem;
+                width: 72px;
+                height: 72px;
+                font-size: 0.65rem;
             }
         }
     </style>
@@ -278,7 +319,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">Moin_Sir</div>
+            <div class="logo" title="Moin_Sir">
+                <span class="logo-orbit" aria-hidden="true"></span>
+                <span class="logo-text">Moin_Sir</span>
+            </div>
             <h1>📤 Send ↔ Receive 📥</h1>
             <p>Share files and text instantly with a simple 4-digit code</p>
         </div>

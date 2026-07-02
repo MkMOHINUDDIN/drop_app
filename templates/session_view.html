@@ -16,26 +16,30 @@
         {% for file in files %}
         <li class="file-item" data-file-id="{{ file.id }}">
             <div class="file-info">
-                <div class="file-name">{{ file.original_filename }}</div>
+                <div class="file-name">{% if file.item_type == 'message' %}📝 Message{% else %}{{ file.original_filename }}{% endif %}</div>
                 <div class="file-size">
-                    {{ format_file_size(file.file_size) }} ·
+                    {% if file.item_type != 'message' %}{{ format_file_size(file.file_size) }} · {% endif %}
                     {{ file.created_at.strftime('%Y-%m-%d %H:%M') if file.created_at else '' }}
                 </div>
-                {% if file.note %}
+                {% if file.item_type == 'message' %}
+                <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-top: 8px; white-space: pre-wrap;">{{ file.note }}</div>
+                {% elif file.note %}
                 <div style="color: #4a5568; margin-top: 6px; font-size: 0.95rem;">{{ file.note }}</div>
                 {% endif %}
             </div>
+            {% if file.item_type != 'message' %}
             <a href="{{ url_for('session.download_viewer_file', viewer_code=session.viewer_code, file_id=file.id) }}" class="btn">
                 ⬇️ Download
             </a>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>
     {% else %}
     <div style="text-align: center; padding: 40px; color: #718096;">
         <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
-        <h3>No files yet</h3>
-        <p>The session owner has not uploaded any files.</p>
+        <h3>No content yet</h3>
+        <p>The session owner has not shared any files or messages.</p>
     </div>
     {% endif %}
 

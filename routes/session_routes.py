@@ -18,6 +18,7 @@ from flask import (
 from services.file_service import format_file_size
 from services.session_service import (
     close_session,
+    cleanup_expired_sessions,
     delete_session_file,
     file_record_to_json,
     get_session_by_owner_code,
@@ -30,7 +31,7 @@ from services.session_service import (
     update_session_file_note,
     upload_session_file,
 )
-from utils.codes import is_valid_session_code, MAX_NOTE_LENGTH
+from utils.codes import MAX_NOTE_LENGTH, normalize_session_code
 
 session_bp = Blueprint('session', __name__)
 
@@ -43,12 +44,22 @@ def _storage_path():
     return current_app.config['STORAGE_PATH']
 
 
+def _run_session_cleanup():
+    cleanup_expired_sessions(_db_path(), _storage_path())
+
+
 @session_bp.route('/session/create', methods=['POST'])
 def create():
     """Create a new session drop."""
     session_name = request.form.get('session_name', '').strip()
     try:
-        session = create_session(_db_path(), _storage_path(), session_name)
+        _run_session_cleanup()
+        session = create_session(
+            _db_path(),
+            _storage_path(),
+            session_name,
+            expiry_hours=current_app.config['DROP_EXPIRY_HOURS'],
+        )
         return render_template(
             'session_created.html',
             session=session,
@@ -62,8 +73,9 @@ def create():
 @session_bp.route('/session/manage/<owner_code>')
 def manage_session(owner_code):
     """Owner dashboard for managing a session."""
-    owner_code = owner_code.upper()
-    if not is_valid_session_code(owner_code):
+    _run_session_cleanup()
+    owner_code = normalize_session_code(owner_code)
+    if not owner_code:
         return render_template('session_not_found.html', code=owner_code, role='owner')
 
     session = get_session_by_owner_code(_db_path(), owner_code)
@@ -83,8 +95,9 @@ def manage_session(owner_code):
 @session_bp.route('/session/view/<viewer_code>')
 def view_session(viewer_code):
     """Read-only viewer page for a session."""
-    viewer_code = viewer_code.upper()
-    if not is_valid_session_code(viewer_code):
+    _run_session_cleanup()
+    viewer_code = normalize_session_code(viewer_code)
+    if not viewer_code:
         return render_template('session_not_found.html', code=viewer_code, role='viewer')
 
     session = get_session_by_viewer_code(_db_path(), viewer_code)
@@ -103,9 +116,9 @@ def view_session(viewer_code):
 @session_bp.route('/session/open-viewer', methods=['POST'])
 def open_viewer():
     """Redirect to session viewer from home page."""
-    code = request.form.get('viewer_code', '').strip().upper()
-    if not is_valid_session_code(code):
-        flash('Please enter a valid session viewer code.', 'error')
+    code = normalize_session_code(request.form.get('viewer_code', ''))
+    if not code:
+        flash('Please enter a valid 4-digit session viewer code.', 'error')
         return redirect(url_for('home'))
     return redirect(url_for('session.view_session', viewer_code=code))
 
@@ -113,9 +126,9 @@ def open_viewer():
 @session_bp.route('/session/open-owner', methods=['POST'])
 def open_owner():
     """Redirect to session owner dashboard from home page."""
-    code = request.form.get('owner_code', '').strip().upper()
-    if not is_valid_session_code(code):
-        flash('Please enter a valid session owner code.', 'error')
+    code = normalize_session_code(request.form.get('owner_code', ''))
+    if not code:
+        flash('Please enter a valid 4-digit session owner code.', 'error')
         return redirect(url_for('home'))
     return redirect(url_for('session.manage_session', owner_code=code))
 
@@ -123,8 +136,8 @@ def open_owner():
 @session_bp.route('/api/session/upload/<owner_code>', methods=['POST'])
 def api_upload(owner_code):
     """Async file upload for session owner."""
-    owner_code = owner_code.upper()
-    if not is_valid_session_code(owner_code):
+    owner_code = normalize_session_code(owner_code)
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     file_storage = request.files.get('file')
@@ -146,9 +159,11 @@ def api_upload(owner_code):
 def api_delete_file(file_id):
     """Delete a session file (owner only)."""
     data = request.get_json(silent=True) or {}
-    owner_code = (data.get('owner_code') or request.form.get('owner_code') or '').strip().upper()
+    owner_code = normalize_session_code(
+        (data.get('owner_code') or request.form.get('owner_code') or '')
+    )
 
-    if not is_valid_session_code(owner_code):
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     if delete_session_file(_db_path(), _storage_path(), owner_code, file_id):
@@ -160,10 +175,10 @@ def api_delete_file(file_id):
 def api_update_note(file_id):
     """Update note on a session file (owner only)."""
     data = request.get_json(silent=True) or {}
-    owner_code = (data.get('owner_code') or '').strip().upper()
+    owner_code = normalize_session_code(data.get('owner_code') or '')
     note = data.get('note', '')
 
-    if not is_valid_session_code(owner_code):
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     try:
@@ -180,11 +195,11 @@ def api_update_note(file_id):
 @session_bp.route('/api/session/<owner_code>/name', methods=['PATCH'])
 def api_rename_session(owner_code):
     """Rename a session (owner only)."""
-    owner_code = owner_code.upper()
+    owner_code = normalize_session_code(owner_code)
     data = request.get_json(silent=True) or {}
     session_name = data.get('session_name', '')
 
-    if not is_valid_session_code(owner_code):
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     session = rename_session(_db_path(), owner_code, session_name)
@@ -200,11 +215,11 @@ def api_rename_session(owner_code):
 @session_bp.route('/api/session/<owner_code>/reorder', methods=['PATCH'])
 def api_reorder(owner_code):
     """Reorder session files (owner only). file_ids: top-to-bottom display order."""
-    owner_code = owner_code.upper()
+    owner_code = normalize_session_code(owner_code)
     data = request.get_json(silent=True) or {}
     file_ids = data.get('file_ids', [])
 
-    if not is_valid_session_code(owner_code):
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     if not isinstance(file_ids, list):
@@ -218,8 +233,8 @@ def api_reorder(owner_code):
 @session_bp.route('/api/session/<owner_code>/close', methods=['POST'])
 def api_close_session(owner_code):
     """Close and delete a session (owner only)."""
-    owner_code = owner_code.upper()
-    if not is_valid_session_code(owner_code):
+    owner_code = normalize_session_code(owner_code)
+    if not owner_code:
         return jsonify({'ok': False, 'error': 'Invalid owner code.'}), 403
 
     if close_session(_db_path(), _storage_path(), owner_code):
@@ -230,13 +245,16 @@ def api_close_session(owner_code):
 @session_bp.route('/session/download/<viewer_code>/<int:file_id>')
 def download_viewer_file(viewer_code, file_id):
     """Download a file from a session (viewer access)."""
-    viewer_code = viewer_code.upper()
+    viewer_code = normalize_session_code(viewer_code)
     session = get_session_by_viewer_code(_db_path(), viewer_code)
     if not session:
         abort(404)
 
     file_record = get_session_file(_db_path(), file_id)
     if not file_record or file_record['session_id'] != session['id']:
+        abort(404)
+
+    if file_record.get('item_type') == 'message':
         abort(404)
 
     if not file_record['file_path'] or not os.path.exists(file_record['file_path']):
@@ -252,13 +270,16 @@ def download_viewer_file(viewer_code, file_id):
 @session_bp.route('/session/owner-download/<owner_code>/<int:file_id>')
 def download_owner_file(owner_code, file_id):
     """Download a file from a session (owner access)."""
-    owner_code = owner_code.upper()
+    owner_code = normalize_session_code(owner_code)
     session = get_session_by_owner_code(_db_path(), owner_code)
     if not session:
         abort(404)
 
     file_record = get_session_file(_db_path(), file_id)
     if not file_record or file_record['session_id'] != session['id']:
+        abort(404)
+
+    if file_record.get('item_type') == 'message':
         abort(404)
 
     if not file_record['file_path'] or not os.path.exists(file_record['file_path']):

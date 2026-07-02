@@ -11,7 +11,8 @@ def init_session_tables(cursor):
             session_name TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_active INTEGER DEFAULT 1
+            is_active INTEGER DEFAULT 1,
+            expires_at TIMESTAMP
         )
     ''')
 
@@ -38,3 +39,27 @@ def init_session_tables(cursor):
     cursor.execute(
         'CREATE INDEX IF NOT EXISTS idx_session_files_order ON session_files (session_id, upload_order DESC)'
     )
+
+    _migrate_session_tables(cursor)
+
+
+def _migrate_session_tables(cursor):
+    """Apply additive schema updates for existing databases."""
+    cursor.execute('PRAGMA table_info(session_files)')
+    columns = {row[1] for row in cursor.fetchall()}
+    if 'item_type' not in columns:
+        cursor.execute(
+            "ALTER TABLE session_files ADD COLUMN item_type TEXT DEFAULT 'file'"
+        )
+
+    cursor.execute('PRAGMA table_info(sessions)')
+    session_columns = {row[1] for row in cursor.fetchall()}
+    if 'expires_at' not in session_columns:
+        cursor.execute('ALTER TABLE sessions ADD COLUMN expires_at TIMESTAMP')
+        cursor.execute(
+            '''
+            UPDATE sessions
+            SET expires_at = datetime(created_at, '+24 hours')
+            WHERE expires_at IS NULL
+            '''
+        )

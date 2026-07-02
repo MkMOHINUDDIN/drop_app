@@ -20,7 +20,7 @@ import json
 # Configuration
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    MAX_CONTENT_LENGTH_MB = int(os.environ.get('MAX_CONTENT_LENGTH_MB', 200))
+    MAX_CONTENT_LENGTH_MB = int(os.environ.get('MAX_CONTENT_LENGTH_MB', 400))
     DROP_EXPIRY_HOURS = int(os.environ.get('DROP_EXPIRY_HOURS', 24))
     
     # Use Render's persistent storage directory if available, otherwise use local
@@ -301,6 +301,8 @@ def send():
         
         # Clean up expired drops
         cleanup_expired_drops()
+        from services.session_service import cleanup_expired_sessions
+        cleanup_expired_sessions(app.config['DATABASE_PATH'], app.config['STORAGE_PATH'])
         
         return render_template('send_success.html', code=code, expires_at=expires_at)
         
@@ -430,6 +432,8 @@ if __name__ == '__main__':
     
     # Clean up expired drops on startup
     cleanup_expired_drops()
+    from services.session_service import cleanup_expired_sessions
+    cleanup_expired_sessions(app.config['DATABASE_PATH'], app.config['STORAGE_PATH'])
     
     # Log startup information
     app.logger.info(f"Starting app with database: {app.config['DATABASE_PATH']}")
